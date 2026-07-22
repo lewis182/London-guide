@@ -1,6 +1,7 @@
-const CACHE = 'london-guide-v1';
+const CACHE = 'london-guide-v2';
 const SHELL = [
-  './london-guide.html',
+  './',
+  './index.html',
   './manifest.json'
 ];
 
@@ -27,6 +28,18 @@ self.addEventListener('fetch', e => {
   // Always fetch API calls from network — never cache them
   if (e.request.url.includes('openrouter.ai') || e.request.url.includes('fonts.googleapis')) {
     e.respondWith(fetch(e.request).catch(() => new Response('', {status: 503})));
+    return;
+  }
+  // Network-first for the app shell so updates always come through; cache fallback for offline
+  const isShell = e.request.mode === 'navigate' || e.request.url.endsWith('/index.html');
+  if (isShell) {
+    e.respondWith(
+      fetch(e.request).then(r => {
+        const copy = r.clone();
+        caches.open(CACHE).then(c => c.put(e.request, copy));
+        return r;
+      }).catch(() => caches.match(e.request))
+    );
     return;
   }
   e.respondWith(

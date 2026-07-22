@@ -89,6 +89,10 @@
   .edit-btn:hover { color: var(--muted); }
   .dismiss-btn { background: none; border: none; cursor: pointer; color: #ccc8c2; font-size: 16px; padding: 2px 3px; transition: color 0.2s; line-height: 1; font-weight: 300; }
   .dismiss-btn:hover { color: var(--danger); }
+  .visited-btn { background: none; border: none; cursor: pointer; color: #ccc8c2; font-size: 14px; padding: 2px 3px; transition: color 0.2s; line-height: 1; }
+  .visited-btn:hover { color: var(--muted); }
+  .visited-btn.visited { color: #4a7c59; }
+  .event-card:has(.visited-btn.visited), .essential-card:has(.visited-btn.visited), .drink-card:has(.visited-btn.visited) { opacity: 0.55; }
 
   /* EVENT CARD */
   .event-card { background: var(--surface); padding: 22px 24px 20px; display: flex; flex-direction: column; transition: background 0.15s; min-height: 0; }
@@ -219,6 +223,15 @@
       <option value="anthropic/claude-sonnet-4.5">Claude Sonnet 4.5 — recommended</option>
       <option value="anthropic/claude-opus-4.8">Claude Opus 4.8 — top quality (higher cost)</option>
     </select>
+    <label style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text);margin-bottom:20px;cursor:pointer">
+      <input type="checkbox" id="webSearchToggle" checked style="accent-color:var(--text)">
+      Ground refreshes in live web search <span style="color:var(--muted)">(recommended — verifies events are real and current)</span>
+    </label>
+    <div style="display:flex;gap:10px;margin-bottom:24px">
+      <button class="btn-secondary" style="flex:1" onclick="exportData()">Export my data</button>
+      <button class="btn-secondary" style="flex:1" onclick="document.getElementById('importFile').click()">Import backup</button>
+      <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importData(event)">
+    </div>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeModal()">Cancel</button>
       <button class="btn-primary" onclick="saveApiKey()">Save &amp; Fetch</button>
@@ -265,7 +278,7 @@
 
 <header>
   <div class="header-inner">
-    <div class="logo">London <span>Guide</span></div>
+    <div class="logo">London <span>Guide</span> <span style="font-size:9px;letter-spacing:0.08em;color:var(--muted);vertical-align:super">v2.2</span></div>
     <nav>
       <button class="" onclick="showTab('thisweek',this)">This Week</button>
       <button onclick="showTab('comingup',this)">Coming Up</button>
@@ -353,6 +366,11 @@
         <p>Drop a screengrab here, or click to browse</p>
         <small>Claude will identify the place and look up its details</small>
         <div class="img-preview-wrap" id="imgPreviewWrap"><img id="imgPreview" class="img-preview" src="" alt=""></div>
+      </div>
+      <div style="margin:14px 0 4px">
+        <label class="ap-label">Or paste a link or text</label>
+        <textarea id="apPaste" placeholder="Paste a URL (article, Instagram, venue site) or any text about a place…" style="width:100%;min-height:56px;border:1px solid var(--border);background:var(--bg);padding:10px 12px;font-family:var(--font-body);font-size:13px;color:var(--text);outline:none;border-radius:2px"></textarea>
+        <button class="btn-secondary" style="margin-top:8px" onclick="extractFromPaste('es')">Extract details</button>
       </div>
       <div class="extract-status" id="extractStatus"></div>
       <div class="ap-grid">
@@ -468,11 +486,13 @@ roof.</div><div class="essential-tip">→ Busiest at lunch on Saturdays. Arrive 
 
   <!-- DRINKS -->
   <div class="tab-panel active" id="tab-drinks">
-    <div class="section-title">Coffee, Breakfast &amp; Cocktails <em>London's finest</em></div>
+    <div class="section-title">Coffee, Cocktails, Lobbies &amp; Wine <em>London's finest</em></div>
     <div class="sub-tab-bar">
       <button class="sub-tab-btn active" onclick="showDrinksSubTab('all',this)">All</button>
       <button class="sub-tab-btn" onclick="showDrinksSubTab('coffee',this)">Coffee &amp; Breakfast</button>
       <button class="sub-tab-btn" onclick="showDrinksSubTab('cocktails',this)">Hotel Bars &amp; Cocktails</button>
+      <button class="sub-tab-btn" onclick="showDrinksSubTab('lobbies',this)">Hotel Lobbies &amp; Tea</button>
+      <button class="sub-tab-btn" onclick="showDrinksSubTab('wine',this)">Wine &amp; Listening Bars</button>
     </div>
 
     <div class="add-place-bar">
@@ -489,6 +509,11 @@ roof.</div><div class="essential-tip">→ Busiest at lunch on Saturdays. Arrive 
         <small>Claude will identify the place and look up its details</small>
         <div class="img-preview-wrap" id="drinksImgPreviewWrap"><img id="drinksImgPreview" class="img-preview" src="" alt=""></div>
       </div>
+      <div style="margin:14px 0 4px">
+        <label class="ap-label">Or paste a link or text</label>
+        <textarea id="dkPaste" placeholder="Paste a URL (article, Instagram, venue site) or any text about a place…" style="width:100%;min-height:56px;border:1px solid var(--border);background:var(--bg);padding:10px 12px;font-family:var(--font-body);font-size:13px;color:var(--text);outline:none;border-radius:2px"></textarea>
+        <button class="btn-secondary" style="margin-top:8px" onclick="extractFromPaste('dk')">Extract details</button>
+      </div>
       <div class="extract-status" id="drinksExtractStatus"></div>
       <div class="ap-grid">
         <div><label class="ap-label">Name</label><input id="dkName" type="text" placeholder="e.g. Bar Termini"></div>
@@ -499,6 +524,8 @@ roof.</div><div class="essential-tip">→ Busiest at lunch on Saturdays. Arrive 
           <select id="dkCategory">
             <option value="coffee" selected="selected">Coffee &amp; Breakfast</option>
             <option value="cocktails">Hotel Bars &amp; Cocktails</option>
+            <option value="lobbies">Hotel Lobbies &amp; Tea</option>
+            <option value="wine">Wine &amp; Listening Bars</option>
           </select>
         </div>
       </div>
@@ -566,6 +593,8 @@ whisky and late-night drinking. One of Soho's most loved.</div><a class="card-li
  floors above the City with extraordinary views east and west. 
 Japanese-Brazilian cocktails and one of London's finest outdoor 
 terraces.</div><a class="card-link" href="https://www.sushisamba.com/locations/london-heron-tower" target="_blank" rel="noopener">Find out more →</a></div><div class="drink-card"><div class="drink-card-header"><div><div class="drink-type">Bar &amp;amp; Cocktails</div><div class="drink-name">cloudM Rooftop Bar</div><div class="drink-area">Aldgate</div></div><div class="card-actions"><button class="save-btn" onclick="toggleSave('dk_cloudMRooftopBar',this,'cloudM Rooftop Bar','Aldgate','A sleek sky bar on the upper floors of cloudM Hotel, 1–3 Commercial Road, with uninterrupted views across the City of London skyline. Open to non-residents.','drink')">♡</button><button class="edit-btn" onclick="openEditModal('dk_cloudMRooftopBar','drink',{name:'cloudM Rooftop Bar',venue:'Aldgate',desc:'A sleek sky bar on the upper floors of cloudM Hotel, 1–3 Commercial Road, with uninterrupted views across the City of London skyline. Open to non-residents.',tip:'',url:'https://www.cloudmhotels.com/london-aldgate/'})">✎</button><button class="dismiss-btn" onclick="openDismissModal('dk_cloudMRooftopBar','cloudM Rooftop Bar',this.closest('.event-card,.essential-card,.drink-card'))">×</button></div></div><div class="drink-desc">A sleek sky bar on the upper floors of cloudM Hotel, 1–3 Commercial Road, with uninterrupted views across the City of London skyline. Open to non-residents.</div><a class="card-link" href="https://www.cloudmhotels.com/london-aldgate/" target="_blank" rel="noopener">Find out more →</a></div><div class="drink-card"><div class="drink-card-header"><div><div class="drink-type">Bar &amp;amp; Cocktails</div><div class="drink-name">Flute Rooftop Bar, Broadwick Soho</div><div class="drink-area">Soho</div></div><div class="card-actions"><button class="save-btn" onclick="toggleSave('dk_FluteRooftopBarBroadwick',this,'Flute Rooftop Bar, Broadwick Soho','Soho','A stylish open-air rooftop bar atop the Broadwick Soho hotel at 21–29 Broadwick Street in the heart of Soho. City views and creative cocktails.','drink')">♡</button><button class="edit-btn" onclick="openEditModal('dk_FluteRooftopBarBroadwick','drink',{name:'Flute Rooftop Bar, Broadwick Soho',venue:'Soho',desc:'A stylish open-air rooftop bar atop the Broadwick Soho hotel at 21–29 Broadwick Street in the heart of Soho. City views and creative cocktails.',tip:'',url:'https://www.broadwicksoho.com/eat-drink/flute/'})">✎</button><button class="dismiss-btn" onclick="openDismissModal('dk_FluteRooftopBarBroadwick','Flute Rooftop Bar, Broadwick Soho',this.closest('.event-card,.essential-card,.drink-card'))">×</button></div></div><div class="drink-desc">A stylish open-air rooftop bar atop the Broadwick Soho hotel at 21–29 Broadwick Street in the heart of Soho. City views and creative cocktails.</div><a class="card-link" href="https://www.broadwicksoho.com/eat-drink/flute/" target="_blank" rel="noopener">Find out more →</a></div><div class="drink-card"><div class="drink-card-header"><div><div class="drink-type">Bar &amp;amp; Cocktails</div><div class="drink-name">Bund Lounge</div><div class="drink-area">Clerkenwell</div></div><div class="card-actions"><button class="save-btn" onclick="toggleSave('dk_BundLounge',this,'Bund Lounge','Clerkenwell','A hidden rooftop cocktail bar in Clerkenwell offering creative drinks and panoramic views over the City of London. A cool, intimate venue popular with locals.','drink')">♡</button><button class="edit-btn" onclick="openEditModal('dk_BundLounge','drink',{name:'Bund Lounge',venue:'Clerkenwell',desc:'A hidden rooftop cocktail bar in Clerkenwell offering creative drinks and panoramic views over the City of London. A cool, intimate venue popular with locals.',tip:'',url:'https://www.bundlounge.co.uk'})">✎</button><button class="dismiss-btn" onclick="openDismissModal('dk_BundLounge','Bund Lounge',this.closest('.event-card,.essential-card,.drink-card'))">×</button></div></div><div class="drink-desc">A hidden rooftop cocktail bar in Clerkenwell offering creative drinks and panoramic views over the City of London. A cool, intimate venue popular with locals.</div><a class="card-link" href="https://www.bundlounge.co.uk" target="_blank" rel="noopener">Find out more →</a></div><div class="drink-card"><div class="drink-card-header"><div><div class="drink-type">Bar &amp;amp; Cocktails</div><div class="drink-name">Mr Fogg&#39;s Hat Tavern &amp; Gin Club</div><div class="drink-area">Marylebone</div></div><div class="card-actions"><button class="save-btn" onclick="toggleSave('dk_MrFoggsHatTavernGinClub',this,'Mr Fogg&#39;s Hat Tavern &amp; Gin Club','Marylebone','An eccentrically decorated Victorian-themed gin bar at 1 New Quebec Street, inspired by Jules Verne&#39;s Phileas Fogg. Features an extraordinary curated gin menu and theatrical service.','drink')">♡</button><button class="edit-btn" onclick="openEditModal('dk_MrFoggsHatTavernGinClub','drink',{name:'Mr Fogg&#39;s Hat Tavern &amp; Gin Club',venue:'Marylebone',desc:'An eccentrically decorated Victorian-themed gin bar at 1 New Quebec Street, inspired by Jules Verne&#39;s Phileas Fogg. Features an extraordinary curated gin menu and theatrical service.',tip:'',url:'https://www.mr-foggs.com'})">✎</button><button class="dismiss-btn" onclick="openDismissModal('dk_MrFoggsHatTavernGinClub','Mr Fogg&#39;s Hat Tavern &amp; Gin Club',this.closest('.event-card,.essential-card,.drink-card'))">×</button></div></div><div class="drink-desc">An eccentrically decorated Victorian-themed gin bar at 1 New Quebec Street, inspired by Jules Verne&#39;s Phileas Fogg. Features an extraordinary curated gin menu and theatrical service.</div><a class="card-link" href="https://www.mr-foggs.com" target="_blank" rel="noopener">Find out more →</a></div></div></div>
+    <div class="sub-panel" id="drinks-lobbies"><div class="card-grid" id="drinksLobbies"></div></div>
+    <div class="sub-panel" id="drinks-wine"><div class="card-grid" id="drinksWine"></div></div>
   </div>
 
   <!-- SAVED -->
@@ -589,6 +618,7 @@ terraces.</div><a class="card-link" href="https://www.sushisamba.com/locations/l
 <script>
 let apiKey = (localStorage.getItem('lg_apikey') || '').trim();
 let selectedModel = localStorage.getItem('lg_model') || 'anthropic/claude-sonnet-4.5';
+let webSearchOn = localStorage.getItem('lg_websearch') !== '0'; // live web grounding, on by default
 // Only models that comply with a strict no-training OpenRouter policy AND answer well (Sonnet or better).
 // Any old, weaker, or retired saved model is bumped up to Sonnet so it can't 404.
 const _compliantModels = ['anthropic/claude-sonnet-4.5', 'anthropic/claude-opus-4.8'];
@@ -596,6 +626,8 @@ if (!_compliantModels.includes(selectedModel)) { selectedModel = 'anthropic/clau
 let savedItems    = JSON.parse(localStorage.getItem('lg_saved')      || '[]');
 let dismissedItems= JSON.parse(localStorage.getItem('lg_dismissed')  || '[]');
 let customPlaces  = JSON.parse(localStorage.getItem('lg_custom')     || '[]');
+let customDrinks  = JSON.parse(localStorage.getItem('lg_customdrinks')|| '[]');
+let visitedItems  = JSON.parse(localStorage.getItem('lg_visited')    || '[]');
 let overrides     = JSON.parse(localStorage.getItem('lg_overrides')  || '{}');
 
 const CACHE_TTL = 48 * 60 * 60 * 1000;
@@ -611,6 +643,8 @@ function persist() {
   localStorage.setItem('lg_dismissed',  JSON.stringify(dismissedItems));
   localStorage.setItem('lg_custom',     JSON.stringify(customPlaces));
   localStorage.setItem('lg_overrides',  JSON.stringify(overrides));
+  localStorage.setItem('lg_customdrinks',JSON.stringify(customDrinks));
+  localStorage.setItem('lg_visited',    JSON.stringify(visitedItems));
 }
 
 // ── CACHE ──
@@ -704,15 +738,11 @@ function showDrinksSubTab(id,btn){
   document.querySelectorAll('#tab-drinks .sub-tab-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('#tab-drinks .sub-panel').forEach(p=>p.classList.remove('active'));
   btn.classList.add('active');
-  const L={all:'All',coffee:'Coffee & Breakfast',cocktails:'Hotel Bars & Cocktails'};
+  const L={all:'All',coffee:'Coffee & Breakfast',cocktails:'Hotel Bars & Cocktails',lobbies:'Hotel Lobbies & Tea',wine:'Wine & Listening Bars'};
   document.getElementById('drinksTabNote').textContent=L[id]||'';
   const sel=document.getElementById('dkCategory'); if(sel&&id!=='all') sel.value=id;
   if(id==='all'){
-    const coffeeHtml=buildDrinkCards('coffee');
-    const cocktailHtml=buildDrinkCards('cocktails');
-    document.getElementById('drinks-all').innerHTML=
-      '<div class="category-group"><div class="category-label">Coffee &amp; Breakfast</div><div class="card-grid">'+coffeeHtml+'</div></div>'
-      +'<div class="category-group"><div class="category-label">Hotel Bars &amp; Cocktails</div><div class="card-grid">'+cocktailHtml+'</div></div>';
+    document.getElementById('drinks-all').innerHTML=buildAllDrinksHtml();
     document.getElementById('drinks-all').classList.add('active');
     return;
   }
@@ -742,6 +772,8 @@ function openModal(){
   document.getElementById('apiModal').classList.add('open');
   const sel = document.getElementById('modelSelect');
   if(sel) sel.value = selectedModel;
+  const ws = document.getElementById('webSearchToggle');
+  if(ws) ws.checked = webSearchOn;
 }
 function closeModal() { document.getElementById('apiModal').classList.remove('open'); }
 function saveApiKey(){
@@ -750,6 +782,8 @@ function saveApiKey(){
   apiKey=v; localStorage.setItem('lg_apikey',v);
   selectedModel = document.getElementById('modelSelect').value;
   localStorage.setItem('lg_model', selectedModel);
+  webSearchOn = document.getElementById('webSearchToggle').checked;
+  localStorage.setItem('lg_websearch', webSearchOn ? '1' : '0');
   document.getElementById('apiBtn').textContent='Key ✓';
   document.getElementById('apiBtn').classList.add('configured');
   closeModal(); fetchEvents();
@@ -784,6 +818,7 @@ function confirmDismiss(){
   const {id,title,cardEl}=dismissTarget;
   savedItems=savedItems.filter(s=>s.id!==id);
   customPlaces=customPlaces.filter(p=>p.id!==id);
+  customDrinks=customDrinks.filter(p=>'dk_'+p.name.replace(/[^a-zA-Z0-9]/g,'').slice(0,24)!==id);
   const ex=dismissedItems.findIndex(d=>d.id===id);
   if(ex>-1) dismissedItems[ex]={id,title,reason:selectedReason};
   else dismissedItems.push({id,title,reason:selectedReason});
@@ -847,11 +882,21 @@ function isDismissed(id){ return dismissedItems.some(d=>d.id===id); }
 function cah(id,title,venue,desc,tip,url,type){
   const isSaved=savedItems.some(s=>s.id===id);
   const eFields=`{name:'`+esc(title)+`',venue:'`+esc(venue)+`',desc:'`+esc(desc)+`',tip:'`+esc(tip)+`',url:'`+esc(url)+`'}`;
+  const isVisited=visitedItems.includes(id);
   return `<div class="card-actions">`
+    +`<button class="visited-btn${isVisited?' visited':''}" title="Mark as visited" onclick="toggleVisited('${id}',this)">✓</button>`
     +`<button class="save-btn${isSaved?' saved':''}" onclick="toggleSave('${id}',this,'${esc(title)}','${esc(venue)}','${esc(desc)}','${type}')">${isSaved?'♥':'♡'}</button>`
     +`<button class="edit-btn" onclick="openEditModal('${id}','${type}',${eFields})">✎</button>`
     +`<button class="dismiss-btn" onclick="openDismissModal('${id}','${esc(title)}',this.closest('.event-card,.essential-card,.drink-card'))">×</button>`
     +`</div>`;
+}
+
+// ── VISITED ──
+function toggleVisited(id,btn){
+  const i=visitedItems.indexOf(id);
+  if(i>-1) visitedItems.splice(i,1); else visitedItems.push(id);
+  btn.classList.toggle('visited',i===-1);
+  persist();
 }
 
 // ── SAVE ──
@@ -860,6 +905,62 @@ function toggleSave(id,btn,title,venue,desc,type){
   if(idx>-1){ savedItems.splice(idx,1); btn.classList.remove('saved'); btn.textContent='♡'; }
   else{ savedItems.push({id,title,venue,desc,type}); btn.classList.add('saved'); btn.textContent='♥'; }
   persist(); renderSaved();
+}
+
+// ── TOLERANT JSON PARSING ──
+// Handles trailing commas and responses truncated mid-stream by cutting back to the
+// last complete entry and closing any open brackets.
+function fixUnescapedQuotes(s){
+  // escape double quotes that appear inside string values (a quote not followed by , : } ] or end)
+  let out='',inStr=false,esc=false;
+  for(let i=0;i<s.length;i++){
+    const c=s[i];
+    if(!inStr){ if(c==='"') inStr=true; out+=c; continue; }
+    if(esc){ esc=false; out+=c; continue; }
+    if(c==='\\'){ esc=true; out+=c; continue; }
+    if(c==='"'){
+      if(/^\s*[,:}\]]/.test(s.slice(i+1))||i===s.length-1){ inStr=false; out+=c; }
+      else out+='\\"';
+      continue;
+    }
+    out+=c;
+  }
+  return out;
+}
+function tryParseJson(s){
+  try{ return JSON.parse(s); }catch(e){}
+  let t=s.replace(/,\s*([}\]])/g,'$1');
+  try{ return JSON.parse(t); }catch(e){}
+  try{ return JSON.parse(fixUnescapedQuotes(t)); }catch(e){}
+  t=fixUnescapedQuotes(t);
+  // find the end of the last complete top-level child (category array / entry)
+  let stack=[],inStr=false,esc=false,lastGood=-1;
+  for(let i=0;i<t.length;i++){
+    const c=t[i];
+    if(inStr){
+      if(esc) esc=false;
+      else if(c==='\\') esc=true;
+      else if(c==='"') inStr=false;
+      continue;
+    }
+    if(c==='"') inStr=true;
+    else if(c==='{'||c==='[') stack.push(c);
+    else if(c==='}'||c===']'){ stack.pop(); if(stack.length<=2) lastGood=i; }
+  }
+  if(lastGood>0){
+    let cand=t.slice(0,lastGood+1).replace(/,\s*$/,'');
+    let st=[],ins=false,es=false;
+    for(const ch of cand){
+      if(ins){ if(es) es=false; else if(ch==='\\') es=true; else if(ch==='"') ins=false; continue; }
+      if(ch==='"') ins=true;
+      else if(ch==='{') st.push('}');
+      else if(ch==='[') st.push(']');
+      else if(ch==='}'||ch===']') st.pop();
+    }
+    cand+=st.reverse().join('');
+    try{ return JSON.parse(cand); }catch(e){}
+  }
+  return null;
 }
 
 // ── FETCH EVENTS ──
@@ -885,22 +986,65 @@ async function fetchSection(mode,today){
     +"Return events "+timeframe+".\n"
     +"Category counts: Art Galleries & Exhibitions=6, Classical & Chamber Music=3, Jazz & Live Music="+counts['Jazz & Live Music']+", Cultural & Festivals=3, New Bar Openings=3, Private Shows & Hotel Events=3, Open Houses & Gardens=6.\n"
     +"For Open Houses & Gardens: include venues in BOTH London AND Surrey (NGS private gardens, historic houses, walled gardens).\n"
-    +"Return ONLY raw JSON starting with { and ending with }. No markdown. No backticks. No explanation.\n"
+    +(webSearchOn?"Use live web search results to verify every event: only include events you can confirm are real, current and correctly dated. Use official venue or booking URLs from the search results — never invent a URL. If unsure of a URL, return an empty string.\n":"")
+    +"Return ONLY raw JSON starting with { and ending with }. No markdown. No backticks. No explanation. Never use double quote characters inside any text value — use single quotes for quoted names or titles.\n"
     +"Each description: max 20 words. bookingNote: include pricing. url: direct booking or venue URL, or empty string.\n"
     +jsonTemplate;
 
-  const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{
-    method:'POST',
-    headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey,'HTTP-Referer':window.location.href,'X-Title':'London Guide'},
-    body:JSON.stringify({model:selectedModel,max_tokens:3500,messages:[{role:'user',content:prompt}]})
+  async function attempt(useWeb){
+    const body={model:selectedModel,max_tokens:6000,messages:[{role:'user',content:prompt}]};
+    if(useWeb) body.plugins=[{id:'web',max_results:5,search_prompt:'A web search was conducted on '+today+'. Use these results only to verify that events are real, current and correctly dated. Do NOT cite sources, do NOT add markdown links, do NOT add any commentary — your entire output must be the single raw JSON object requested.'}];
+    const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey,'HTTP-Referer':window.location.href,'X-Title':'London Guide'},
+      body:JSON.stringify(body)
+    });
+    if(!res.ok){
+      const e=await res.text();
+      let hint='';
+      if(res.status===401||res.status===403) hint=' — check your API key at openrouter.ai/keys';
+      else if(res.status===402) hint=' — your OpenRouter credits may have run out';
+      else if(res.status===404) hint=' — no endpoint matches your account\'s model/privacy settings';
+      throw new Error('HTTP '+res.status+hint+': '+e.slice(0,200));
+    }
+    const data=await res.json();
+    if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
+    const truncated=data.choices?.[0]?.finish_reason==='length';
+    const raw=(data.choices?.[0]?.message?.content||'').trim();
+    if(!raw) throw new Error('Empty response from API');
+    // extract the JSON object even if the model wrapped it in text or fences
+    const start=raw.indexOf('{'), end=raw.lastIndexOf('}');
+    if(start<0||end<=start) throw new Error('No JSON in response'+(truncated?' (response was truncated)':''));
+    const parsed=tryParseJson(raw.slice(start,end+1));
+    if(!parsed) throw new Error('Parse failed'+(truncated?' (response was truncated — try Refresh again)':'')+'. Started: '+raw.slice(start,start+120));
+    return parsed;
+  }
+  if(webSearchOn){
+    try{ return await attempt(true); }
+    catch(e){
+      console.warn('Web-grounded fetch failed ('+e.message+') — retrying without web search.');
+      return await attempt(false);
+    }
+  }
+  return attempt(false);
+}
+
+function loadCacheAny(k){
+  try{ const e=JSON.parse(localStorage.getItem('lg_cache_'+k)); if(e&&e.data) return e; }catch(e){}
+  return null;
+}
+function renderCachedEvents(){
+  const secs=[['thisWeek','thisWeekContent'],['comingUp','comingUpContent']];
+  secs.forEach(([key,elId])=>{
+    const c=loadCacheAny(key);
+    if(c){
+      renderSection(c.data,elId);
+      setStatus(key,'done',Object.values(c.data).flat().length+' events · Loaded from cache ('+formatAge(Date.now()-c.ts)+') — press Refresh to update');
+    } else {
+      document.getElementById(elId).innerHTML='<div class="empty-state"><p>No events loaded yet.</p><small>Press Refresh to fetch events.</small></div>';
+      setStatus(key,'idle','Press Refresh to load events');
+    }
   });
-  if(!res.ok){ const e=await res.text(); throw new Error('HTTP '+res.status+': '+e.slice(0,200)); }
-  const data=await res.json();
-  if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
-  const raw=(data.choices?.[0]?.message?.content||'').trim().replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/\s*```$/i,'').trim();
-  if(!raw) throw new Error('Empty response from API');
-  try{ return JSON.parse(raw); }
-  catch(e){ throw new Error('Parse failed. Started: '+raw.slice(0,120)); }
 }
 
 async function fetchEvents(forceRefresh=false){
@@ -951,9 +1095,10 @@ function renderSection(data,containerId){
   let html='';
   for(const [cat,events] of Object.entries(data)){
     if(!events||!events.length) continue;
+    const dTitles=new Set(dismissedItems.map(d=>(d.title||'').toLowerCase().trim()).filter(Boolean));
     const visible=events.filter(ev=>{
       const id='ev_'+btoa(unescape(encodeURIComponent(cat+'|'+(ev.title||'')+'|'+(ev.venue||'')))).replace(/[^a-zA-Z0-9]/g,'').slice(0,32);
-      return !isDismissed(id);
+      return !isDismissed(id) && !dTitles.has((ev.title||'').toLowerCase().trim());
     });
     if(!visible.length) continue;
     html+='<div class="category-group"><div class="category-label">'+esc(cat)+'</div><div class="card-grid">';
@@ -968,7 +1113,8 @@ function renderSection(data,containerId){
         +'<div class="event-meta">'
         +(ev.dates?'<span class="event-date">'+esc(ev.dates)+'</span>':'')
         +(ev.bookingNote?'<span class="event-tag">'+esc(ev.bookingNote)+'</span>':'')
-        +(f.url?'<a class="event-link" href="'+esc(f.url)+'" target="_blank" rel="noopener">Book / Info →</a>':'')
+        +(f.url?'<a class="event-link" href="'+esc(f.url)+'" target="_blank" rel="noopener">Book / Info →</a>'
+               :'<a class="event-link" href="https://www.google.com/search?q='+encodeURIComponent((f.title||'')+' '+(f.venue||'')+' London')+'" target="_blank" rel="noopener">Search →</a>')
         +'</div></div>';
     }
     html+='</div></div>';
@@ -1027,8 +1173,41 @@ const ESSENTIALS={
     {name:'The Charterhouse',note:'A medieval monastery and Tudor mansion that has been continuously inhabited for 650 years, recently opened for guided tours.',tip:'Booking essential. The Great Hall, Chapel and Master\'s Court are extraordinary.',url:'https://thecharterhouse.org'},
     {name:'Mercato Metropolitano, Elephant & Castle',note:'A vast Italian-inspired community market in a converted paper factory — some of London\'s best street food, coffee and natural wine under one roof.',tip:'Busiest at lunch on Saturdays. Arrive early to get a seat at the better stalls.',url:'https://www.mercatometropolitano.com/elephant-castle/'},
   ],
-  barsrest:[],
-  misc:[]
+  barsrest:[
+    {name:'St. JOHN, Smithfield',note:'Fergus Henderson\'s nose-to-tail landmark — whitewashed walls, impeccable British cooking and the famous bone marrow on toast.',tip:'Lunch is easier to book than dinner. The bakery counter does exceptional doughnuts.',url:'https://stjohnrestaurant.com'},
+    {name:'Rochelle Canteen, Shoreditch',note:'Hidden in the bike shed of a converted Victorian school. Simple, seasonal British cooking from Margot Henderson — one of London\'s loveliest lunches.',tip:'Ring the buzzer at the blue door on Playground Gardens. Courtyard tables in summer are a joy.',url:'https://www.rochellecanteen.com'},
+    {name:'Quo Vadis, Soho',note:'Jeremy Lee\'s elegant Soho institution — stained glass, white tablecloths and the definitive smoked eel sandwich.',tip:'The pre-theatre menu is excellent value for cooking of this standard.',url:'https://quovadissoho.co.uk'},
+    {name:'Andrew Edmunds, Soho',note:'Candlelit Georgian townhouse dining that has barely changed in forty years. Handwritten menus and one of the best-value wine lists in London.',tip:'Ask for a ground-floor window table. Book well ahead — it is small and much loved.',url:'https://www.andrewedmunds.com'},
+    {name:'Noble Rot, Bloomsbury',note:'Wine-first bistro on Lamb\'s Conduit Street from the cult wine magazine — old-world cellar, seasonal British-French cooking, zero pretension.',tip:'Sister sites in Soho and Mayfair are equally good. The slip sole in smoked butter is a signature.',url:'https://noblerot.co.uk'},
+    {name:'Brasserie Zédel, Piccadilly',note:'A vast, gilded art deco basement brasserie — the most beautiful cheap dining room in London, with a prix fixe that defies belief.',tip:'Bar Américain next door is a destination in its own right for a pre-dinner cocktail.',url:'https://www.brasseriezedel.com'},
+    {name:'Sessions Arts Club, Clerkenwell',note:'Dining amid faded-grandeur plasterwork in the old judges\' dining room of Sessions House. Beautiful room, serious seasonal cooking.',tip:'Book several weeks out. Ask for a table near the tall windows at golden hour.',url:'https://sessionsartsclub.com'},
+    {name:'Rules, Covent Garden',note:'London\'s oldest restaurant (1798) — game, oysters and puddings under Victorian paintings. Gloriously unchanged.',tip:'The upstairs cocktail bar is a hidden gem for a martini even without dinner.',url:'https://rules.co.uk'},
+    {name:'J Sheekey, Covent Garden',note:'Theatreland\'s great fish and seafood institution, tucked down St Martin\'s Court. Wood panelling, white jackets, perfect fish pie.',tip:'The Atlantic Bar takes walk-ins — oysters and a glass of Chablis at the counter.',url:'https://www.j-sheekey.co.uk'},
+    {name:'Bocca di Lupo, Soho',note:'Regional Italian cooking of real scholarship — small plates from every corner of Italy, served at a long marble counter.',tip:'Sit at the counter to watch the kitchen. Gelupo, their gelateria, is directly opposite.',url:'https://www.boccadilupo.com'},
+    {name:'Barrafina, Soho',note:'Counter-only Spanish tapas of the highest order — pristine seafood, tortilla made to order and sherry by the glass.',tip:'Arrive before opening or mid-afternoon to shorten the queue. Watch for the daily specials board.',url:'https://www.barrafina.co.uk'},
+    {name:'Kiln, Soho',note:'Thai cooking over open fire and clay pots in a tiny counter-seat room — repeatedly named among Britain\'s best restaurants.',tip:'Counter seats are walk-in only and worth the wait; the slow-grilled pork skewers are essential.',url:'https://kilnsoho.com'},
+    {name:'Brat, Shoreditch',note:'Basque-inspired grill cooking above Redchurch Street — whole turbot cooked over embers is the dish everyone comes for.',tip:'Smaller plates from the grill make a superb lunch if the turbot feels like too much.',url:'https://bratrestaurant.com'},
+    {name:'The River Café, Hammersmith',note:'Ruth Rogers\' Thames-side Italian legend — wood oven, faultless ingredients and the famous chocolate nemesis.',tip:'Book a terrace table in summer. Lunch stretches long here — don\'t plan anything after.',url:'https://www.rivercafe.co.uk'},
+    {name:'The Quality Chop House, Farringdon',note:'A Grade II-listed "progressive working class caterer" from 1869 — original bench seating and outstanding modern British cooking.',tip:'The confit potatoes are legendary. The shop next door sells superb meat and wine.',url:'https://thequalitychophouse.com'},
+    {name:'Padella, Borough',note:'Handmade pasta at remarkable prices beside Borough Market. The pici cacio e pepe has a devoted following.',tip:'Join the virtual queue before you arrive. Solo diners get counter seats fastest.',url:'https://www.padella.co'},
+    {name:'Trullo, Highbury',note:'Padella\'s elder sibling — a proper neighbourhood Italian with charcoal grill and a famous beef shin ragu.',tip:'Quieter and easier to book than Padella, with a broader menu. Sunday lunch is excellent.',url:'https://www.trullorestaurant.com'},
+    {name:'Sweetings, City of London',note:'A Victorian fish restaurant essentially unaltered since 1889 — potted shrimps and skate at lunchtime counters.',tip:'Weekday lunch only. Go early — City workers fill it fast.',url:'https://sweetingsrestaurant.co.uk'},
+    {name:'Wiltons, St James\'s',note:'Est. 1742 and utterly of its world — oysters, Dover sole and game in hushed, clubbable surroundings on Jermyn Street.',tip:'Oysters are best in the winter months. Jackets preferred.',url:'https://wiltons.co.uk'},
+    {name:'Scott\'s, Mayfair',note:'Glamorous Mount Street seafood — champagne, crustacea and the best people-watching terrace in Mayfair.',tip:'A seat at the central crustacea bar is the most fun way to do it.',url:'https://www.scotts-restaurant.com'},
+    {name:'Clarke\'s, Kensington',note:'Sally Clarke\'s pioneering Chez Panisse-inspired restaurant — forty years of quietly perfect, ingredient-led cooking.',tip:'The shop and bakery next door is wonderful for picnic supplies for Kensington Gardens.',url:'https://www.sallyclarke.com'},
+    {name:'Chez Bruce, Wandsworth',note:'A neighbourhood restaurant of Michelin quality opposite Wandsworth Common — many Londoners\' favourite restaurant, full stop.',tip:'The set lunch is one of the best-value serious meals in London. Worth the journey south.',url:'https://www.chezbruce.co.uk'},
+    {name:'Core by Clare Smyth, Notting Hill',note:'Three Michelin stars and British produce elevated to extraordinary heights — the "potato and roe" is a modern classic.',tip:'Book weeks ahead; lunch offers the same kitchen at a gentler price.',url:'https://www.corebyclaresmyth.com'}
+  ],
+  misc:[
+    {name:'Borough Market',note:'London\'s great food market under the railway arches at London Bridge — producers, street food and centuries of history.',tip:'Go early on a weekday morning; Saturdays are a crush by 11am.',url:'https://boroughmarket.org.uk'},
+    {name:'Maltby Street Market, Bermondsey',note:'A ribbon of food stalls and bars along the Ropewalk arches — smaller, more local-feeling alternative to Borough.',tip:'Weekends only. Combine with the Bermondsey Beer Mile breweries nearby.',url:'https://www.maltby.st'},
+    {name:'Columbia Road Flower Market',note:'Sunday-morning riot of flowers, foliage and East End barrow-boy patter, lined with independent shops.',tip:'Arrive at 8am for the pick, or after 2pm for the bargains as traders sell down.',url:'https://www.columbiaroad.info'},
+    {name:'Daunt Books, Marylebone',note:'The most beautiful bookshop in London — Edwardian oak galleries and skylight, with books arranged by country.',tip:'Head to the galleried back room. Their tote is the unofficial badge of literary London.',url:'https://dauntbooks.co.uk'},
+    {name:'John Sandoe Books, Chelsea',note:'A warren of three creaking floors off the King\'s Road, stocked entirely by taste rather than algorithm. Booksellers\' bookshop since 1957.',tip:'Tell them what you last loved and let them choose your next book.',url:'https://www.johnsandoe.com'},
+    {name:'God\'s Own Junkyard, Walthamstow',note:'A warehouse blazing with salvaged neon signs, film props and glowing ephemera — one of London\'s most photogenic rooms.',tip:'Open Friday to Sunday only. The café inside serves cake among the neon.',url:'https://www.godsownjunkyard.co.uk'},
+    {name:'Wigmore Hall Lunchtime Concerts',note:'World-class chamber music in the perfect acoustic of London\'s loveliest recital hall — Monday lunchtimes broadcast on Radio 3.',tip:'Lunchtime tickets are inexpensive and rarely sell out far ahead — ideal spontaneous culture.',url:'https://www.wigmore-hall.org.uk'},
+    {name:'Fortnum & Mason, Piccadilly',note:'Three hundred years of eau-de-nil splendour — the ground-floor food hall remains a genuine pleasure, tourists notwithstanding.',tip:'The lower-ground wine bar is a calm spot for a glass and a plate away from the crowds.',url:'https://www.fortnumandmason.com'}
+  ]
 };
 
 function renderEssentials(){
@@ -1077,14 +1256,18 @@ const DRINKS={
     {type:'Coffee & Breakfast',name:'Tayer + Elementary',area:'Old Street, Shoreditch',desc:'Exceptional single-origin coffee and considered breakfast food by day; one of the most inventive cocktail bars in the world by night.',url:'https://www.tayer.london'},
     {type:'Roman Espresso Bar',name:'Bar Termini',area:'Soho',desc:'Eight stools, marble counter, Roman-style espresso and perfectly pre-batched negronis. Impeccable coffee and no compromise whatsoever.',url:'https://www.bar-termini.com'},
     {type:'Coffee & Architecture',name:'Attendant, Fitzrovia',area:'Fitzrovia',desc:'Specialty coffee inside a converted Victorian underground public toilet. The original marble fittings and ironwork are entirely intact.',url:'https://the-attendant.com'},
-    {type:'Coffee & Natural Wine',name:'Bright, London Fields',area:'Hackney',desc:'One of East London\'s best coffee spots by day. Seasonal, considered food alongside exceptional coffee in an honest, well-lit room.',url:'https://www.brightrestaurant.co.uk'},
     {type:'Coffee & Canal',name:'Towpath Café',area:'Regent\'s Canal, Haggerston',desc:'A legendary café on the Regent\'s Canal towpath, open spring to autumn. Extraordinary coffee and simple seasonal food.',url:'https://www.timeout.com/london/restaurants/towpath-cafe'},
     {type:'Specialty Coffee',name:'Ozone Coffee Roasters',area:'Old Street, Shoreditch',desc:'New Zealand-founded roastery and café with one of the finest espresso programmes in London. Excellent brunch menu.',url:'https://ozonecoffee.co.uk'},
     {type:'Coffee & Pastry',name:'Buns from Home',area:'Soho & London Fields',desc:'London\'s finest cinnamon buns alongside exceptional coffee. A small, carefully run operation with a devoted following.',url:'https://www.bunsfromhome.com'},
     {type:'Coffee & Design',name:'Allpress Espresso',area:'Redchurch Street, Shoreditch',desc:'The London outpost of the acclaimed New Zealand roastery — a beautiful brick arched space with exceptional coffee and simple food.',url:'https://uk.allpressespresso.com'},
     {type:'Coffee & Terrace',name:'Caravan, King\'s Cross',area:'King\'s Cross',desc:'Roastery café with an outdoor terrace and one of London\'s most consistent specialty coffee programmes alongside a great all-day menu.',url:'https://www.caravankingscross.co.uk'},
-    {type:'Coffee & Books',name:'Persephone Books Café',area:'Bloomsbury',desc:'The café attached to the celebrated feminist publisher — excellent coffee, light lunches and the full Persephone catalogue to browse.',url:'https://www.persephonebooks.co.uk'},
     {type:'Coffee & Courtyard',name:'Lantana, Fitzrovia',area:'Fitzrovia',desc:'Australian-style all-day café famous for its weekend brunch queue. Consistently excellent coffee and one of London\'s best eggs on toast.',url:'https://www.lantanacafe.co.uk'},
+    {type:'Coffee — Pioneer',name:'Prufrock Coffee',area:'Leather Lane, Clerkenwell',desc:'One of the founding rooms of London\'s speciality coffee scene — world-class espresso and filter, and a training ground for champion baristas.',url:'https://www.prufrockcoffee.com'},
+    {type:'Coffee — Institution',name:'Monmouth Coffee, Borough',area:'Borough Market',desc:'The roastery that taught London to care about coffee. The Borough corner site, with its communal table, remains the essential visit.',url:'https://www.monmouthcoffee.co.uk'},
+    {type:'Coffee — Benchmark',name:'Kaffeine',area:'Great Titchfield Street, Fitzrovia',desc:'Australian-run and relentlessly consistent — many hold it to be London\'s best flat white, fifteen years on.',url:'https://kaffeine.co.uk'},
+    {type:'Coffee & Roastery',name:'WatchHouse, Bermondsey Street',area:'Bermondsey',desc:'Born in a former watch house on Bermondsey Street and now roasting some of London\'s finest — the original site keeps its charm.',url:'https://www.watchhouse.com'},
+    {type:'Coffee — City',name:'Rosslyn Coffee',area:'Queen Victoria Street, City',desc:'Widely rated the City\'s best cup — brisk, friendly and precise. A model of what a commuter coffee bar can be.',url:'https://www.rosslyncoffee.com'},
+    {type:'Bakery & Coffee',name:'E5 Bakehouse',area:'London Fields, Hackney',desc:'Sourdough pioneer under the railway arches by London Fields — superb bread, pastries and coffee, milling its own grain.',url:'https://e5bakehouse.com'},
   ],
   cocktails:[
     {type:'Hotel Bar — Landmark',name:'American Bar at The Savoy',area:'Strand',desc:'In operation since 1893. Inventive seasonal menus, white-gloved service and live piano every evening. Book well ahead.',url:'https://www.thesavoylondon.com/restaurant/the-american-bar/'},
@@ -1094,13 +1277,50 @@ const DRINKS={
     {type:'Hotel Bar — Holborn',name:'Scarfes Bar at Rosewood London',area:'Holborn',desc:'Named for satirist Gerald Scarfe. Feels like a Mayfair library — leather, mahogany, open fire — with excellent Sunday jazz.',url:'https://www.rosewoodhotels.com/en/london/dining/scarfes-bar'},
     {type:'Cocktail Bar',name:'Kwānt',area:'Soho',desc:'Founded by a former Savoy head bartender. Rare and foraged ingredients, technically rigorous cocktails and exceptional knowledge.',url:'https://www.kwantbar.com'},
     {type:'Immersive Bar',name:'Cahoots',area:'Soho',desc:'A 1940s air raid shelter transformed into a theatrical wartime bar. Period-dressed staff and cocktails in tin mugs.',url:'https://www.cahoots-london.com'},
-    {type:'Hotel Bar — City',name:'Dandelyan at Mondrian',area:'South Bank',desc:'Ryan Chetiyawardana\'s botanics-focused bar — now Lyaness — but the original vision: modern British botanicals and impeccable technique.',url:'https://www.lyaness.com'},
     {type:'Cocktail Bar',name:'Swift',area:'Soho',desc:'Two floors — an upstairs bar for aperitivo and cocktails, downstairs for whisky and late-night drinking. One of Soho\'s most loved.',url:'https://www.barswift.com'},
     {type:'Speakeasy',name:'Nightjar',area:'Old Street',desc:'A pre-Prohibition speakeasy with live jazz, extraordinary vintage cocktails and a booking list that fills weeks in advance.',url:'https://www.barnightjar.com'},
     {type:'Hotel Bar — Mayfair',name:'Bar at Claridge\'s',area:'Mayfair',desc:'The most glamorous room in London. Art Deco perfection, white-gloved service and cocktails of exceptional quality and restraint.',url:'https://www.claridges.co.uk/restaurants-bars/bar/'},
     {type:'Rooftop Bar',name:'Sushisamba Rooftop',area:'Heron Tower, City',desc:'39 floors above the City with extraordinary views east and west. Japanese-Brazilian cocktails and one of London\'s finest outdoor terraces.',url:'https://www.sushisamba.com/locations/london-heron-tower'},
+    {type:'Neighbourhood Great',name:'Satan\'s Whiskers',area:'Bethnal Green',desc:'Unassuming room, taxidermy, hip-hop and a daily-changing menu — regularly named among the very best cocktail bars in Britain.',url:'https://www.satanswhiskers.com'},
+    {type:'Classic — No Fuss',name:'Happiness Forgets',area:'Hoxton Square',desc:'"High-end cocktails, low-rent basement." Warm service and faultless classics — the template for a generation of London bars.',url:'https://www.happinessforgets.com'},
+    {type:'French Accent',name:'Coupette',area:'Bethnal Green',desc:'Calvados, champagne snowballs and French warmth in E2 — inventive, generous and repeatedly listed among the world\'s best.',url:'https://coupette.co.uk'},
+    {type:'Sustainable & Curious',name:'Seed Library',area:'One Hundred Shoreditch',desc:'Ryan Chetiyawardana\'s lo-fi basement bar — stripped-back, inventive drinks built on subtle twists rather than theatre.',url:'https://www.seedlibrary.co.uk'},
+    {type:'Hidden Room',name:'Discount Suit Company',area:'Spitalfields',desc:'A tiny, low-lit den in a former tailor\'s stockroom off Petticoat Lane — superb classics at kind prices.',url:'https://www.discountsuitcompany.co.uk'},
+    {type:'Hotel Bar — Theatrical',name:'Beaufort Bar at The Savoy',area:'Strand',desc:'The Savoy\'s jet-black, gold-leafed second bar — cabaret-stage glamour and a menu as strong as its famous sibling upstairs.',url:'https://www.thesavoylondon.com/restaurant/beaufort-bar/'},
+    {type:'Hotel Bar — Mayfair',name:'Donovan Bar at Brown\'s',area:'Albemarle Street, Mayfair',desc:'Terence Donovan\'s photographs line Brown\'s intimate, jazz-scored bar — impeccable martinis in London\'s oldest hotel.',url:'https://www.roccofortehotels.com/hotels-and-resorts/browns-hotel/'},
+    {type:'Minimalist — Cult',name:'A Bar with Shapes for a Name',area:'Haggerston',desc:'Bauhaus-inspired, endlessly precise East London bar — one drink menu, big ideas, and a fixture on the World\'s 50 Best list.',url:''},
+  ],
+  lobbies:[
+    {type:'Grand Dame',name:'The Foyer at Claridge\'s',area:'Mayfair',desc:'The art deco heart of Mayfair — afternoon tea beneath the Dale Chihuly sculpture, or simply coffee and the best people-watching in the room.',url:'https://www.claridges.co.uk'},
+    {type:'Institution',name:'The Promenade at The Dorchester',area:'Park Lane',desc:'A gilded runway of sofas, palms and pianists running the length of the hotel — tea, champagne or late cocktails in unabashed splendour.',url:'https://www.dorchestercollection.com/london/the-dorchester'},
+    {type:'Palm Court',name:'Palm Court at The Langham',area:'Marylebone',desc:'Where afternoon tea was arguably invented in 1865 — restored to full glitter and still one of the great tea rooms.',url:'https://www.langhamhotels.com/en/the-langham/london/'},
+    {type:'Riverside Classic',name:'Thames Foyer at The Savoy',area:'Strand',desc:'Tea and pastries beneath the glass dome and winter-garden gazebo, with a pianist. The classic Savoy experience without a dinner bill.',url:'https://www.thesavoylondon.com/restaurant/thames-foyer/'},
+    {type:'Modern Grandeur',name:'Mirror Room at Rosewood London',area:'Holborn',desc:'Jewel-box mirrored salon in the grand courtyard hotel — art-inspired afternoon tea and impeccable service, a step from the everyday.',url:'https://www.rosewoodhotels.com/en/london'},
+    {type:'Clubby & Lively',name:'The Ned, City',area:'Bank',desc:'The old Midland Bank\'s vast banking hall — a dozen restaurants and bars among a forest of green columns, with live music most evenings.',url:'https://www.thened.com'},
+    {type:'Theatrical Atrium',name:'NoMad London',area:'Covent Garden',desc:'The old Bow Street Magistrates\' Court transformed — drinks and dining under a glass-roofed, plant-filled atrium of real drama.',url:'https://www.thenomadhotel.com/london'},
+    {type:'Quiet Perfection',name:'The Goring',area:'Belgravia',desc:'The last grand family-owned hotel in London — tea in the lounge or a glass on the veranda over its private garden. Deeply civilised.',url:'https://www.thegoring.com'},
+    {type:'Design Classic',name:'Lobby Bar at One Aldwych',area:'Covent Garden',desc:'A soaring corner lobby with double-height windows and serious cocktails — long a favourite pre-theatre rendezvous.',url:'https://www.onealdwych.com'},
+    {type:'Retro-Modern',name:'The Standard, King\'s Cross',area:'King\'s Cross',desc:'The brutalist Camden annexe reborn — a lobby library of vintage books, red velvet and a garden bar, all open to wanderers.',url:'https://www.standardhotels.com/london'},
+    {type:'Palm Court Revival',name:'Palm Court at Kimpton Fitzroy',area:'Russell Square',desc:'The Edwardian Palm Court of the old Hotel Russell, beautifully revived — tea by day, cocktails by night under stained glass.',url:'https://www.kimptonfitzroylondon.co.uk'},
+    {type:'Discreet Luxury',name:'The Beaumont',area:'Mayfair',desc:'A 1920s-styled art deco gem behind Selfridges — the Gatsby Room and Le Magritte Bar feel lifted from another, better-dressed era.',url:'https://www.thebeaumont.com'}
+  ],
+  wine:[
+    {type:'Ancient Cellar',name:'Gordon\'s Wine Bar',area:'Embankment',desc:'London\'s oldest wine bar (1890) — candlelit vaulted cellars, sherry from the cask, and cheese and cold cuts. Utterly unchanged.',url:'https://gordonswinebar.com'},
+    {type:'Wine Bar & Kitchen',name:'Noble Rot Soho',area:'Greek Street, Soho',desc:'The Soho outpost of the wine world\'s favourite bistro — remarkable bottles at fair prices in the old Gay Hussar site.',url:'https://noblerot.co.uk'},
+    {type:'Railway Arch Original',name:'40 Maltby Street',area:'Bermondsey',desc:'Natural wine importer\'s bar under the arches — blackboard cooking of startling quality and bottles from the warehouse shelves.',url:'https://www.40maltbystreet.com'},
+    {type:'Theatreland Cave',name:'The 10 Cases',area:'Covent Garden',desc:'A tiny Endell Street bistrot à vin — just ten cases bought of each wine, so the list never stands still.',url:'https://www.10cases.co.uk'},
+    {type:'Natural Wine Pioneer',name:'Sager + Wilde',area:'Hackney Road',desc:'The bar that brought serious wine to the East End on kind terms — grilled cheese sandwiches and glasses of the extraordinary.',url:'https://www.sagerandwilde.com'},
+    {type:'Soho Natural',name:'Bar Crispin',area:'Kingly Street, Soho',desc:'Low-lit, green-tiled Soho spot for low-intervention wines and refined small plates from the Crispin team.',url:'https://www.crispinlondon.com'},
+    {type:'Wine Club & Table',name:'Planque',area:'Haggerston',desc:'Part cellar, part salon, part restaurant in a converted warehouse — members store bottles here, but all are welcome to drink and dine.',url:'https://www.planque.co.uk'},
+    {type:'Neighbourhood Gem',name:'Cadet',area:'Newington Green',desc:'A small, warm room of low-intervention bottles, charcuterie sliced to order and blackboard plates. The model modern local.',url:'https://www.cadetlondon.com'},
+    {type:'Listening Bar — Original',name:'Spiritland, King\'s Cross',area:'Granary Square',desc:'Audiophile temple with a world-class sound system — coffee by day, records and cocktails by night. For people who listen properly.',url:'https://spiritland.com'},
+    {type:'Listening Bar — Dalston',name:'Brilliant Corners',area:'Dalston',desc:'Japanese-inspired hi-fi bar — vinyl on rotary decks, natural wine, sake and izakaya plates. Loose, warm and serious about sound.',url:'https://www.brilliantcornerslondon.co.uk'},
+    {type:'Listening Bar — Peckham',name:'Jumbi',area:'Peckham',desc:'Records, rum and Caribbean warmth — a joyful South London listening bar with DJs at the controls and a proper community feel.',url:'https://www.jumbipeckham.com'}
   ]
 };
+
+// restore user-added drinks places from storage
+customDrinks.forEach(d=>{ (DRINKS[d.category]||DRINKS.cocktails).push(d); });
 
 function buildDrinkCards(cat){
   const items=DRINKS[cat].filter(d=>{ const id='dk_'+d.name.replace(/[^a-zA-Z0-9]/g,'').slice(0,24); return !isDismissed(id); });
@@ -1117,15 +1337,16 @@ function buildDrinkCards(cat){
   }).join('')||'<div class="empty-state" style="grid-column:1/-1"><p>All items hidden.</p></div>';
 }
 
+function buildAllDrinksHtml(){
+  const groups=[['coffee','Coffee &amp; Breakfast'],['cocktails','Hotel Bars &amp; Cocktails'],['lobbies','Hotel Lobbies &amp; Tea'],['wine','Wine &amp; Listening Bars']];
+  return groups.map(([k,label])=>'<div class="category-group"><div class="category-label">'+label+'</div><div class="card-grid">'+buildDrinkCards(k)+'</div></div>').join('');
+}
 function renderDrinks(){
   document.getElementById('drinksCoffee').innerHTML=buildDrinkCards('coffee');
   document.getElementById('drinksCocktails').innerHTML=buildDrinkCards('cocktails');
-  // populate the all panel
-  const coffeeHtml=buildDrinkCards('coffee');
-  const cocktailHtml=buildDrinkCards('cocktails');
-  document.getElementById('drinks-all').innerHTML=
-    '<div class="category-group"><div class="category-label">Coffee &amp; Breakfast</div><div class="card-grid">'+coffeeHtml+'</div></div>'
-    +'<div class="category-group"><div class="category-label">Hotel Bars &amp; Cocktails</div><div class="card-grid">'+cocktailHtml+'</div></div>';
+  document.getElementById('drinksLobbies').innerHTML=buildDrinkCards('lobbies');
+  document.getElementById('drinksWine').innerHTML=buildDrinkCards('wine');
+  document.getElementById('drinks-all').innerHTML=buildAllDrinksHtml();
 }
 
 // ── SAVED ──
@@ -1238,6 +1459,104 @@ If the URL is not visible, infer the most likely official website from your know
   return JSON.parse(raw);
 }
 
+
+// ── PASTE / URL EXTRACTION ──
+async function fetchPageText(url){
+  const res=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url));
+  if(!res.ok) throw new Error('Could not fetch that page (HTTP '+res.status+')');
+  const html=await res.text();
+  const doc=new DOMParser().parseFromString(html,'text/html');
+  doc.querySelectorAll('script,style,noscript,svg').forEach(el=>el.remove());
+  const meta=doc.querySelector('meta[name="description"],meta[property="og:description"]');
+  const title=(doc.title||'')+'\n'+(meta?meta.getAttribute('content')||'':'');
+  return (title+'\n'+(doc.body?doc.body.innerText:'')).replace(/\s+/g,' ').slice(0,6000);
+}
+
+async function llmExtractText(text,kind){
+  const schema = kind==='dk'
+    ? '{"name":"full name","area":"London area or neighbourhood","desc":"1-2 sentence description","url":"official website URL if known, else empty string","category":"coffee, cocktails, lobbies or wine"}'
+    : '{"name":"full name","area":"London area or neighbourhood","note":"1-2 sentence description of what makes it worth visiting","tip":"practical insider tip","url":"official website URL if known, else empty string","category":"one of: views, gardens, arch, quirky, barsrest, misc"}';
+  const guide = kind==='dk'
+    ? 'Use "coffee" for cafés and brunch spots, "cocktails" for cocktail and hotel bars, "lobbies" for hotel lobbies and afternoon tea rooms, "wine" for wine bars and listening bars.'
+    : 'Use category "barsrest" for any restaurant, bar, café or pub.';
+  const prompt='The following text describes a place of interest in or near London — restaurant, bar, café, gallery, garden, hotel or attraction.\n'
+    +'Extract details and return ONLY raw JSON, no markdown:\n'+schema+'\n'+guide
+    +'\nIf a detail is not in the text, use your knowledge of the place; if still unknown, use an empty string.\n\nTEXT:\n'+text;
+  const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey,'HTTP-Referer':window.location.href,'X-Title':'London Guide'},
+    body:JSON.stringify({model:selectedModel,max_tokens:600,messages:[{role:'user',content:prompt}]})
+  });
+  if(!res.ok){ const e=await res.text(); throw new Error('HTTP '+res.status+': '+e.slice(0,200)); }
+  const data=await res.json();
+  if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
+  const raw=(data.choices?.[0]?.message?.content||'').trim().replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/\s*```$/i,'').trim();
+  return JSON.parse(raw);
+}
+
+async function extractFromPaste(kind){
+  const setS = kind==='dk' ? setDXS : setXS;
+  const input=(document.getElementById(kind==='dk'?'dkPaste':'apPaste').value||'').trim();
+  if(!input){ setS('error','Paste a link or some text first.'); return; }
+  if(!apiKey){ setS('error','No API key — add one first.'); return; }
+  const isUrl=/^https?:\/\/\S+$/i.test(input);
+  try{
+    let text=input, sourceUrl='';
+    if(isUrl){
+      sourceUrl=input;
+      setS('loading','Fetching page…');
+      text=await fetchPageText(input);
+    }
+    setS('loading','Extracting details…');
+    const r=await llmExtractText(text,kind);
+    if(sourceUrl&&!r.url) r.url=sourceUrl;
+    if(kind==='dk'){
+      document.getElementById('dkName').value=r.name||'';
+      document.getElementById('dkArea').value=r.area||'';
+      document.getElementById('dkDesc').value=r.desc||'';
+      document.getElementById('dkUrl').value=r.url||'';
+      if(r.category) document.getElementById('dkCategory').value=r.category;
+    } else {
+      document.getElementById('apName').value=r.name||'';
+      document.getElementById('apArea').value=r.area||'';
+      document.getElementById('apNote').value=r.note||'';
+      document.getElementById('apTip').value=r.tip||'';
+      document.getElementById('apUrl').value=r.url||'';
+      if(r.category) document.getElementById('apCategory').value=r.category;
+    }
+    setS('done','Details extracted — review and adjust before saving.');
+  }catch(err){ setS('error','Could not extract: '+err.message); }
+}
+
+// ── BACKUP: EXPORT / IMPORT ──
+const BACKUP_KEYS=['lg_saved','lg_dismissed','lg_custom','lg_customdrinks','lg_overrides','lg_visited','lg_model','lg_websearch'];
+function exportData(){
+  const out={_app:'london-guide',_exported:new Date().toISOString()};
+  BACKUP_KEYS.forEach(k=>{ const v=localStorage.getItem(k); if(v!==null) out[k]=v; });
+  const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='london-guide-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importData(e){
+  const f=e.target.files[0]; if(!f) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(data._app!=='london-guide') throw new Error('Not a London Guide backup file.');
+      let n=0;
+      BACKUP_KEYS.forEach(k=>{ if(typeof data[k]==='string'){ localStorage.setItem(k,data[k]); n++; } });
+      alert('Restored '+n+' data sets. The app will now reload.');
+      location.reload();
+    }catch(err){ alert('Import failed: '+err.message); }
+  };
+  reader.readAsText(f);
+  e.target.value='';
+}
+
 function saveCustomPlace(){
   const name=document.getElementById('apName').value.trim();
   if(!name){ document.getElementById('addSaveStatus').textContent='Name is required.'; return; }
@@ -1283,8 +1602,8 @@ function processDrinksImage(file){
     try{
       const prompt=`You are looking at a screengrab of a bar, café, restaurant or coffee shop.
 Extract details and return ONLY raw JSON, no markdown:
-{"name":"full name","area":"London area or neighbourhood","desc":"1-2 sentence description","url":"official website URL if known, else empty string","category":"coffee or cocktails"}
-Use "coffee" for cafés, coffee shops, breakfast or brunch spots. Use "cocktails" for bars, cocktail venues, hotel bars, pubs.
+{"name":"full name","area":"London area or neighbourhood","desc":"1-2 sentence description","url":"official website URL if known, else empty string","category":"coffee, cocktails, lobbies or wine"}
+Use "coffee" for cafés, coffee shops, breakfast or brunch spots. Use "cocktails" for cocktail bars, hotel bars and pubs. Use "lobbies" for hotel lobbies, lounges and afternoon tea rooms. Use "wine" for wine bars and listening bars.
 If the URL is not visible, infer the most likely official website from your knowledge.`;
       const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{
         method:'POST',
@@ -1317,15 +1636,19 @@ function saveDrinksPlace(){
   if(!name){ document.getElementById('dkSaveStatus').textContent='Name is required.'; return; }
   const category=document.getElementById('dkCategory').value;
   const id='dk_'+name.replace(/[^a-zA-Z0-9]/g,'').slice(0,24);
-  // add to DRINKS array so it renders with the existing cards
-  DRINKS[category].push({
+  // add to DRINKS array so it renders with the existing cards — and persist it
+  const newDrink={
     type:'My Place',
     name,
     area:document.getElementById('dkArea').value.trim(),
     desc:document.getElementById('dkDesc').value.trim(),
     url:document.getElementById('dkUrl').value.trim(),
-    custom:true
-  });
+    custom:true,
+    category
+  };
+  DRINKS[category].push(newDrink);
+  customDrinks.push(newDrink);
+  persist();
   renderDrinks();
   // switch to correct sub-tab
   const btn=document.querySelector(`#tab-drinks .sub-tab-btn[onclick="showDrinksSubTab('${category}',this)"]`);
@@ -1345,7 +1668,7 @@ function init(){
   if(apiKey){
     document.getElementById('apiBtn').textContent='Key ✓';
     document.getElementById('apiBtn').classList.add('configured');
-    fetchEvents();
+    renderCachedEvents(); // events load only when Refresh is pressed
   } else { openModal(); }
 }
 init();
