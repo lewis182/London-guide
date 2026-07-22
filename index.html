@@ -278,7 +278,7 @@
 
 <header>
   <div class="header-inner">
-    <div class="logo">London <span>Guide</span> <span style="font-size:9px;letter-spacing:0.08em;color:var(--muted);vertical-align:super">v2.3</span></div>
+    <div class="logo">London <span>Guide</span> <span style="font-size:9px;letter-spacing:0.08em;color:var(--muted);vertical-align:super">v2.4</span></div>
     <nav>
       <button class="" onclick="showTab('thisweek',this)">This Week</button>
       <button onclick="showTab('comingup',this)">Coming Up</button>
@@ -986,15 +986,15 @@ async function fetchSection(mode,today){
     +"Return events "+timeframe+".\n"
     +"Category counts: Art Galleries & Exhibitions=6, Classical & Chamber Music=3, Jazz & Live Music="+counts['Jazz & Live Music']+", Cultural & Festivals=3, New Bar Openings=3, Private Shows & Hotel Events=3, Open Houses & Gardens=6.\n"
     +"For Open Houses & Gardens: include venues in BOTH London AND Surrey (NGS private gardens, historic houses, walled gardens).\n"
-    +(webSearchOn?"Use live web search results to verify every event: only include events you can confirm are real, current and correctly dated. Use official venue or booking URLs from the search results — never invent a URL. If unsure of a URL, return an empty string.\n":"")
+    +(webSearchOn?"Use live web search results to verify events where possible, and prefer verified events. If the search results are not enough to reach the category counts, fill the remainder with real events you are confident exist from your knowledge of these London venues and their regular programming, with plausible dates. Never invent URLs — use official venue or booking URLs from search results, otherwise return an empty string for url.\n":"")
     +"Return ONLY raw JSON starting with { and ending with }. No markdown. No backticks. No explanation. Never use double quote characters inside any text value — use single quotes for quoted names or titles.\n"
-    +"If you cannot find enough real events for a category, return fewer entries — never include empty, blank or placeholder entries.\n"
+    +"Treat the category counts as targets and aim to fill them with real events. Only return fewer if a category genuinely has nothing suitable — and never include empty, blank or placeholder entries.\n"
     +"Each description: max 20 words. bookingNote: include pricing. url: direct booking or venue URL, or empty string.\n"
     +jsonTemplate;
 
   async function attempt(useWeb){
     const body={model:selectedModel,max_tokens:6000,messages:[{role:'user',content:prompt}]};
-    if(useWeb) body.plugins=[{id:'web',max_results:5,search_prompt:'A web search was conducted on '+today+'. Use these results only to verify that events are real, current and correctly dated. Do NOT cite sources, do NOT add markdown links, do NOT add any commentary — your entire output must be the single raw JSON object requested.'}];
+    if(useWeb) body.plugins=[{id:'web',max_results:10,search_prompt:'A web search was conducted on '+today+'. Use these results only to verify that events are real, current and correctly dated. Do NOT cite sources, do NOT add markdown links, do NOT add any commentary — your entire output must be the single raw JSON object requested.'}];
     const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey,'HTTP-Referer':window.location.href,'X-Title':'London Guide'},
@@ -1018,6 +1018,8 @@ async function fetchSection(mode,today){
     if(start<0||end<=start) throw new Error('No JSON in response'+(truncated?' (response was truncated)':''));
     const parsed=tryParseJson(raw.slice(start,end+1));
     if(!parsed) throw new Error('Parse failed'+(truncated?' (response was truncated — try Refresh again)':'')+'. Started: '+raw.slice(start,start+120));
+    const realCount=Object.values(parsed).flat().filter(ev=>ev&&(ev.title||'').trim()).length;
+    if(realCount===0) throw new Error('No events in response');
     return parsed;
   }
   if(webSearchOn){
