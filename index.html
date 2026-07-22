@@ -278,7 +278,7 @@
 
 <header>
   <div class="header-inner">
-    <div class="logo">London <span>Guide</span> <span style="font-size:9px;letter-spacing:0.08em;color:var(--muted);vertical-align:super">v2.2</span></div>
+    <div class="logo">London <span>Guide</span> <span style="font-size:9px;letter-spacing:0.08em;color:var(--muted);vertical-align:super">v2.3</span></div>
     <nav>
       <button class="" onclick="showTab('thisweek',this)">This Week</button>
       <button onclick="showTab('comingup',this)">Coming Up</button>
@@ -988,6 +988,7 @@ async function fetchSection(mode,today){
     +"For Open Houses & Gardens: include venues in BOTH London AND Surrey (NGS private gardens, historic houses, walled gardens).\n"
     +(webSearchOn?"Use live web search results to verify every event: only include events you can confirm are real, current and correctly dated. Use official venue or booking URLs from the search results — never invent a URL. If unsure of a URL, return an empty string.\n":"")
     +"Return ONLY raw JSON starting with { and ending with }. No markdown. No backticks. No explanation. Never use double quote characters inside any text value — use single quotes for quoted names or titles.\n"
+    +"If you cannot find enough real events for a category, return fewer entries — never include empty, blank or placeholder entries.\n"
     +"Each description: max 20 words. bookingNote: include pricing. url: direct booking or venue URL, or empty string.\n"
     +jsonTemplate;
 
@@ -1098,7 +1099,7 @@ function renderSection(data,containerId){
     const dTitles=new Set(dismissedItems.map(d=>(d.title||'').toLowerCase().trim()).filter(Boolean));
     const visible=events.filter(ev=>{
       const id='ev_'+btoa(unescape(encodeURIComponent(cat+'|'+(ev.title||'')+'|'+(ev.venue||'')))).replace(/[^a-zA-Z0-9]/g,'').slice(0,32);
-      return !isDismissed(id) && !dTitles.has((ev.title||'').toLowerCase().trim());
+      return (ev.title||'').trim() && !isDismissed(id) && !dTitles.has((ev.title||'').toLowerCase().trim());
     });
     if(!visible.length) continue;
     html+='<div class="category-group"><div class="category-label">'+esc(cat)+'</div><div class="card-grid">';
