@@ -278,12 +278,13 @@
 
 <header>
   <div class="header-inner">
-    <div class="logo">London <span>Guide</span> <span style="font-size:9px;letter-spacing:0.08em;color:var(--muted);vertical-align:super">v2.4</span></div>
+    <div class="logo">London <span>Guide</span> <span style="font-size:9px;letter-spacing:0.08em;color:var(--muted);vertical-align:super">v3.0</span></div>
     <nav>
       <button class="" onclick="showTab('thisweek',this)">This Week</button>
       <button onclick="showTab('comingup',this)">Coming Up</button>
       <button onclick="showTab('essentials',this)">Essentials</button>
       <button onclick="showTab('drinks',this)" class="active">Coffee &amp; Cocktails</button>
+      <button onclick="showTab('nearme',this)">Near Me</button>
       <button onclick="showTab('saved',this)">Saved</button>
     </nav>
     <div class="header-actions">
@@ -597,6 +598,16 @@ terraces.</div><a class="card-link" href="https://www.sushisamba.com/locations/l
     <div class="sub-panel" id="drinks-wine"><div class="card-grid" id="drinksWine"></div></div>
   </div>
 
+  <!-- NEAR ME -->
+  <div class="tab-panel" id="tab-nearme">
+    <div class="section-title">Near Me <em>closest places, London &amp; Surrey</em></div>
+    <div class="add-place-bar">
+      <div style="font-size:13px;color:var(--muted)" id="nearMeNote">Uses your location once, on demand — nothing is stored or sent anywhere.</div>
+      <button class="add-place-btn" onclick="findNearMe()">Find places near me</button>
+    </div>
+    <div id="nearMeContent"><div class="empty-state"><p>Tap 'Find places near me' to see the closest spots from the guide.</p><small>Works anywhere in London or Surrey.</small></div></div>
+  </div>
+
   <!-- SAVED -->
   <div class="tab-panel" id="tab-saved">
     <div class="section-title">Saved</div>
@@ -907,6 +918,34 @@ function toggleSave(id,btn,title,venue,desc,type){
   persist(); renderSaved();
 }
 
+// ── TRUSTED LISTINGS FEEDS (keyless RSS via proxy, cached 6h) ──
+const FEED_URLS=['https://www.ianvisits.co.uk/articles/feed/','https://londonist.com/feed'];
+async function getFeedItems(){
+  try{
+    const c=JSON.parse(localStorage.getItem('lg_feeds')||'null');
+    if(c&&(Date.now()-c.ts)<6*60*60*1000&&Array.isArray(c.items)) return c.items;
+  }catch(e){}
+  const fetchOne=async url=>{
+    const ctrl=new AbortController();
+    const timer=setTimeout(()=>ctrl.abort(),9000);
+    try{
+      const res=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url),{signal:ctrl.signal});
+      if(!res.ok) return [];
+      const xml=new DOMParser().parseFromString(await res.text(),'text/xml');
+      return [...xml.querySelectorAll('item')].slice(0,12).map(it=>({
+        title:(it.querySelector('title')?.textContent||'').trim().slice(0,110),
+        link:(it.querySelector('link')?.textContent||'').trim(),
+        date:(it.querySelector('pubDate')?.textContent||'').trim().slice(0,16)
+      })).filter(x=>x.title);
+    }catch(e){ return []; }
+    finally{ clearTimeout(timer); }
+  };
+  const results=await Promise.allSettled(FEED_URLS.map(fetchOne));
+  const items=results.flatMap(r=>r.status==='fulfilled'?r.value:[]);
+  if(items.length) localStorage.setItem('lg_feeds',JSON.stringify({ts:Date.now(),items}));
+  return items;
+}
+
 // ── TOLERANT JSON PARSING ──
 // Handles trailing commas and responses truncated mid-stream by cutting back to the
 // last complete entry and closing any open brackets.
@@ -972,6 +1011,15 @@ async function fetchSection(mode,today){
   const cats=Object.keys(counts);
   const jsonTemplate='{'+cats.map(c=>JSON.stringify(c)+':'+JSON.stringify(Array(counts[c]).fill(schema))).join(',')+'}';
 
+  let feedNote='';
+  try{
+    const feedItems=await getFeedItems();
+    if(feedItems.length){
+      feedNote='\nRecent articles from trusted London listings sources (Ian Visits, Londonist). Use them to inform and verify events, and use their URLs where relevant:\n'
+        +feedItems.slice(0,20).map(f=>'- '+f.title+(f.date?' ('+f.date+')':'')+' — '+f.link).join('\n')+'\n';
+    }
+  }catch(e){}
+
   let prefNote='';
   if(dismissedItems.length){
     const byR={};
@@ -983,6 +1031,7 @@ async function fetchSection(mode,today){
   const prompt="London events curator. Today: "+today+".\n"
     +"Prioritise: galleries, private views, Wigmore Hall, Ronnie Scott's, 606 Club, NGS gardens, hotel cultural events, Barbican, RA, Tate, V&A, White Cube, Hauser & Wirth.\n"
     +prefNote
+    +feedNote
     +"Return events "+timeframe+".\n"
     +"Category counts: Art Galleries & Exhibitions=6, Classical & Chamber Music=3, Jazz & Live Music="+counts['Jazz & Live Music']+", Cultural & Festivals=3, New Bar Openings=3, Private Shows & Hotel Events=3, Open Houses & Gardens=6.\n"
     +"For Open Houses & Gardens: include venues in BOTH London AND Surrey (NGS private gardens, historic houses, walled gardens).\n"
@@ -1142,6 +1191,8 @@ const ESSENTIALS={
     {name:'Monument to the Great Fire',note:'Climb 311 steps inside Wren\'s stone column for a unique elevated view over the City and the Thames.',tip:'Small entry fee. Quietest first thing in the morning on weekdays.',url:'https://www.themonument.org.uk'},
     {name:'Greenwich Park & Royal Observatory',note:'Hilltop park with one of London\'s grandest views across Canary Wharf, the City and the Thames bend.',tip:'Free to enter the park. The Observatory requires a ticket — book ahead.',url:'https://www.royalparks.org.uk/parks/greenwich-park'},
     {name:'Alexandra Palace Terrace',note:'North London\'s great hilltop venue with sweeping views across the whole city from the Crystal Palace transmitter to the City.',tip:'Free, always accessible. The terrace is best in the late afternoon when the light is golden.',url:'https://www.alexandrapalace.com'},
+,
+    {name:'Box Hill, Surrey Hills',note:'The great chalk viewpoint of the North Downs — the sweeping Salomons Memorial view over the Weald is the classic Surrey panorama.',tip:'National Trust café at the top. The Happy Valley circular walk is the best route up.',url:'https://www.nationaltrust.org.uk/visit/surrey/box-hill'}
   ],
   gardens:[
     {name:'Kyoto Garden, Holland Park',note:'A traditional Japanese stroll garden with koi pond, stone lanterns and resident peacocks. One of London\'s most serene corners.',tip:'Arrive before 9am for complete quiet and the best light for photographs.',url:'https://www.rbkc.gov.uk/leisure-and-culture/parks/holland-park/gardens/kyoto-garden'},
@@ -1153,6 +1204,10 @@ const ESSENTIALS={
     {name:'Isabella Plantation, Richmond Park',note:'A woodland garden within Richmond Park, famous for its azaleas and rhododendrons — a spectacular blaze of colour each May.',tip:'Free. Peak flowering is late April to mid-May — plan ahead.',url:'https://www.royalparks.org.uk/parks/richmond-park/things-to-see-and-do/isabella-plantation'},
     {name:'Kew Gardens',note:'The world\'s greatest botanic garden — 300 acres of collections, glasshouses and landscaped grounds. A UNESCO World Heritage Site.',tip:'Book tickets online for a discount. The Temperate House and Waterlily House are unmissable.',url:'https://www.kew.org'},
     {name:'Ham House Gardens, Richmond',note:'A 17th-century formal garden restored to its original layout, surrounding one of the most complete Stuart houses in England.',tip:'National Trust. The Cherry Garden and restored kitchen garden are highlights.',url:'https://www.nationaltrust.org.uk/visit/london/ham-house-and-garden'},
+,
+    {name:'RHS Garden Wisley',note:'The Royal Horticultural Society\'s flagship garden — 240 acres of borders, glasshouse, rock garden and orchards. One of the great gardens of England.',tip:'Weekday mornings are calmest. The Glasshouse and Battleston Hill are unmissable in spring.',url:'https://www.rhs.org.uk/gardens/wisley'},
+    {name:'Painshill, Cobham',note:'An extraordinary restored 18th-century landscape garden — crystal grotto, Gothic temple, vineyard and serpentine lake, all built for pure delight.',tip:'The crystal grotto opens limited hours — check before visiting. Allow a half day.',url:'https://www.painshill.co.uk'},
+    {name:'Claremont Landscape Garden, Esher',note:'One of the earliest surviving English landscape gardens — turf amphitheatre, lake and island pavilion, shaped by Bridgeman, Kent and Capability Brown.',tip:'Combine with a walk to Esher Common. Lovely at autumn colour.',url:'https://www.nationaltrust.org.uk/visit/surrey/claremont-landscape-garden'}
   ],
   arch:[
     {name:'Leadenhall Market',note:'A breathtaking Victorian covered market designed by Horace Jones in 1881 — cobbled floors, painted vaulted ironwork. The model for Diagon Alley.',tip:'Best before 9am when the City is empty and morning light pours through the roof.',url:'https://www.leadenhallmarket.co.uk'},
@@ -1164,6 +1219,9 @@ const ESSENTIALS={
     {name:'Two Temple Place',note:'An extravagant neo-Gothic mansion built in 1895 for William Waldorf Astor. Breathtaking carved interiors, open for free exhibitions each winter.',tip:'Free entry during exhibitions (January–April). One of London\'s most beautiful and unknown interiors.',url:'https://twotempleplace.org'},
     {name:'Strawberry Hill House',note:'Horace Walpole\'s Gothic Revival villa in Twickenham — the building that invented the Gothic aesthetic. Extraordinarily detailed interiors.',tip:'Book tickets in advance. The Long Gallery and Great Parlour are the highlights.',url:'https://www.strawberryhillhouse.org.uk'},
     {name:'Dennis Severs\' House, Spitalfields',note:'A Georgian terraced house preserved as if its Huguenot family has just stepped out. Candlelit, entirely silent, closer to theatre than museum.',tip:'Silent Monday and Wednesday night visits are the essential experience. Book well in advance.',url:'https://dennissevershouse.co.uk'},
+,
+    {name:'Hampton Court Palace',note:'Wolsey\'s great Tudor palace and Wren\'s baroque additions on the Thames — state apartments, the Great Hall, famous maze and superb gardens.',tip:'Arrive at opening and do the Tudor kitchens first, before the crowds. The Magic Garden delights children.',url:'https://www.hrp.org.uk/hampton-court-palace/'},
+    {name:'Polesden Lacey, Great Bookham',note:'An Edwardian party house in the Surrey Hills — Mrs Greville\'s gilded saloon, superb art collection and one of the loveliest views in the county.',tip:'The walled rose garden peaks in June. Good walks radiate from the estate.',url:'https://www.nationaltrust.org.uk/visit/surrey/polesden-lacey'}
   ],
   quirky:[
     {name:'Leake Street Arches',note:'A graffiti-dedicated tunnel beneath Waterloo station, constantly repainted by artists. Bars, street food and a genuine underground atmosphere.',tip:'Free to walk through at any time. The art changes regularly — worth revisiting each season.',url:'https://leakestreet.co.uk'},
@@ -1209,7 +1267,9 @@ const ESSENTIALS={
     {name:'John Sandoe Books, Chelsea',note:'A warren of three creaking floors off the King\'s Road, stocked entirely by taste rather than algorithm. Booksellers\' bookshop since 1957.',tip:'Tell them what you last loved and let them choose your next book.',url:'https://www.johnsandoe.com'},
     {name:'God\'s Own Junkyard, Walthamstow',note:'A warehouse blazing with salvaged neon signs, film props and glowing ephemera — one of London\'s most photogenic rooms.',tip:'Open Friday to Sunday only. The café inside serves cake among the neon.',url:'https://www.godsownjunkyard.co.uk'},
     {name:'Wigmore Hall Lunchtime Concerts',note:'World-class chamber music in the perfect acoustic of London\'s loveliest recital hall — Monday lunchtimes broadcast on Radio 3.',tip:'Lunchtime tickets are inexpensive and rarely sell out far ahead — ideal spontaneous culture.',url:'https://www.wigmore-hall.org.uk'},
-    {name:'Fortnum & Mason, Piccadilly',note:'Three hundred years of eau-de-nil splendour — the ground-floor food hall remains a genuine pleasure, tourists notwithstanding.',tip:'The lower-ground wine bar is a calm spot for a glass and a plate away from the crowds.',url:'https://www.fortnumandmason.com'}
+    {name:'Fortnum & Mason, Piccadilly',note:'Three hundred years of eau-de-nil splendour — the ground-floor food hall remains a genuine pleasure, tourists notwithstanding.',tip:'The lower-ground wine bar is a calm spot for a glass and a plate away from the crowds.',url:'https://www.fortnumandmason.com'},
+    {name:'Watts Gallery – Artists\' Village, Compton',note:'The Victorian world of G.F. and Mary Watts, complete in a Surrey village — gallery, studio, and the astonishing Arts and Crafts mortuary chapel.',tip:'The Watts Chapel is one of the most extraordinary small buildings in England — don\'t miss it.',url:'https://www.wattsgallery.org.uk'},
+    {name:'Denbies Wine Estate, Dorking',note:'England\'s largest vineyard, spread across the North Downs — tastings, vineyard train tours and a farm shop of Surrey produce.',tip:'The vineyard train tour with tasting is the best introduction. Lovely walking on the estate paths.',url:'https://www.denbies.co.uk'}
   ]
 };
 
@@ -1320,6 +1380,21 @@ const DRINKS={
     {type:'Listening Bar — Dalston',name:'Brilliant Corners',area:'Dalston',desc:'Japanese-inspired hi-fi bar — vinyl on rotary decks, natural wine, sake and izakaya plates. Loose, warm and serious about sound.',url:'https://www.brilliantcornerslondon.co.uk'},
     {type:'Listening Bar — Peckham',name:'Jumbi',area:'Peckham',desc:'Records, rum and Caribbean warmth — a joyful South London listening bar with DJs at the controls and a proper community feel.',url:'https://www.jumbipeckham.com'}
   ]
+};
+
+
+// ── COORDINATES for Near Me (lat, lng) ──
+const GEO={
+"Sky Garden":[51.5112,-0.0836],"Garden at 120":[51.5122,-0.0801],"Horizon 22":[51.5155,-0.0827],"Tate Modern Switch House Terrace":[51.5076,-0.0994],"One New Change Rooftop":[51.5140,-0.0956],"Primrose Hill":[51.5390,-0.1600],"Monument to the Great Fire":[51.5102,-0.0859],"Greenwich Park & Royal Observatory":[51.4769,-0.0005],"Alexandra Palace Terrace":[51.5942,-0.1300],"Box Hill, Surrey Hills":[51.2540,-0.3130],
+"Kyoto Garden, Holland Park":[51.5029,-0.2032],"Chelsea Physic Garden":[51.4843,-0.1625],"St Dunstan in the East":[51.5096,-0.0821],"Barbican Conservatory":[51.5203,-0.0936],"Hill Garden & Pergola, Hampstead":[51.5638,-0.1820],"Horniman Museum Gardens":[51.4413,-0.0607],"Isabella Plantation, Richmond Park":[51.4331,-0.2770],"Kew Gardens":[51.4787,-0.2956],"Ham House Gardens, Richmond":[51.4441,-0.3149],"RHS Garden Wisley":[51.3117,-0.4731],"Painshill, Cobham":[51.3298,-0.4152],"Claremont Landscape Garden, Esher":[51.3568,-0.3665],
+"Leadenhall Market":[51.5129,-0.0836],"Sir John Soane's Museum":[51.5169,-0.1174],"Leighton House":[51.4989,-0.2049],"Eltham Palace":[51.4478,0.0219],"Apsley House":[51.5036,-0.1519],"Crossness Pumping Station":[51.5093,0.1319],"Two Temple Place":[51.5111,-0.1119],"Strawberry Hill House":[51.4384,-0.3350],"Dennis Severs' House, Spitalfields":[51.5218,-0.0780],"Hampton Court Palace":[51.4036,-0.3378],"Polesden Lacey, Great Bookham":[51.2705,-0.3562],
+"Leake Street Arches":[51.5013,-0.1140],"Cecil Court":[51.5104,-0.1272],"Neal's Yard, Seven Dials":[51.5143,-0.1265],"Camden Passage, Islington":[51.5344,-0.1028],"Grant Museum of Zoology, UCL":[51.5238,-0.1340],"Viktor Wynd Museum of Curiosities":[51.5325,-0.0596],"Postman's Park":[51.5169,-0.0975],"The Charterhouse":[51.5207,-0.0993],"Mercato Metropolitano, Elephant & Castle":[51.4972,-0.0975],
+"St. JOHN, Smithfield":[51.5202,-0.1015],"Rochelle Canteen, Shoreditch":[51.5266,-0.0745],"Quo Vadis, Soho":[51.5140,-0.1320],"Andrew Edmunds, Soho":[51.5124,-0.1367],"Noble Rot, Bloomsbury":[51.5217,-0.1166],"Brasserie Zédel, Piccadilly":[51.5104,-0.1348],"Sessions Arts Club, Clerkenwell":[51.5227,-0.1057],"Rules, Covent Garden":[51.5104,-0.1224],"J Sheekey, Covent Garden":[51.5111,-0.1281],"Bocca di Lupo, Soho":[51.5111,-0.1338],"Barrafina, Soho":[51.5139,-0.1321],"Kiln, Soho":[51.5109,-0.1361],"Brat, Shoreditch":[51.5237,-0.0740],"The River Café, Hammersmith":[51.4826,-0.2225],"The Quality Chop House, Farringdon":[51.5222,-0.1089],"Padella, Borough":[51.5051,-0.0904],"Trullo, Highbury":[51.5455,-0.1020],"Sweetings, City of London":[51.5124,-0.0937],"Wiltons, St James's":[51.5080,-0.1380],"Scott's, Mayfair":[51.5099,-0.1509],"Clarke's, Kensington":[51.5077,-0.1943],"Chez Bruce, Wandsworth":[51.4445,-0.1712],"Core by Clare Smyth, Notting Hill":[51.5154,-0.2022],
+"Borough Market":[51.5055,-0.0905],"Maltby Street Market, Bermondsey":[51.4986,-0.0752],"Columbia Road Flower Market":[51.5290,-0.0700],"Daunt Books, Marylebone":[51.5210,-0.1509],"John Sandoe Books, Chelsea":[51.4907,-0.1607],"God's Own Junkyard, Walthamstow":[51.5800,-0.0110],"Wigmore Hall Lunchtime Concerts":[51.5168,-0.1478],"Fortnum & Mason, Piccadilly":[51.5083,-0.1387],"Watts Gallery – Artists' Village, Compton":[51.2196,-0.6256],"Denbies Wine Estate, Dorking":[51.2438,-0.3298],
+"Daisy Green":[51.5163,-0.1595],"Tayer + Elementary":[51.5257,-0.0900],"Bar Termini":[51.5136,-0.1300],"Attendant, Fitzrovia":[51.5187,-0.1407],"Towpath Café":[51.5366,-0.0810],"Ozone Coffee Roasters":[51.5250,-0.0855],"Buns from Home":[51.5140,-0.1355],"Allpress Espresso":[51.5240,-0.0725],"Caravan, King's Cross":[51.5357,-0.1250],"Lantana, Fitzrovia":[51.5183,-0.1364],"Prufrock Coffee":[51.5199,-0.1097],"Monmouth Coffee, Borough":[51.5054,-0.0916],"Kaffeine":[51.5186,-0.1396],"WatchHouse, Bermondsey Street":[51.5003,-0.0815],"Rosslyn Coffee":[51.5126,-0.0946],"E5 Bakehouse":[51.5399,-0.0575],
+"American Bar at The Savoy":[51.5101,-0.1206],"The Connaught Bar":[51.5101,-0.1489],"Artesian":[51.5177,-0.1439],"Lyaness at Sea Containers":[51.5081,-0.1057],"Scarfes Bar at Rosewood London":[51.5174,-0.1181],"Kwānt":[51.5076,-0.1422],"Cahoots":[51.5126,-0.1387],"Swift":[51.5135,-0.1310],"Nightjar":[51.5268,-0.0885],"Bar at Claridge's":[51.5127,-0.1478],"Sushisamba Rooftop":[51.5163,-0.0810],"Satan's Whiskers":[51.5288,-0.0554],"Happiness Forgets":[51.5272,-0.0815],"Coupette":[51.5273,-0.0605],"Seed Library":[51.5245,-0.0766],"Discount Suit Company":[51.5168,-0.0742],"Beaufort Bar at The Savoy":[51.5101,-0.1206],"Donovan Bar at Brown's":[51.5093,-0.1417],"A Bar with Shapes for a Name":[51.5366,-0.0762],
+"The Foyer at Claridge's":[51.5127,-0.1478],"The Promenade at The Dorchester":[51.5074,-0.1522],"Palm Court at The Langham":[51.5177,-0.1439],"Thames Foyer at The Savoy":[51.5101,-0.1206],"Mirror Room at Rosewood London":[51.5174,-0.1181],"The Ned, City":[51.5134,-0.0899],"NoMad London":[51.5127,-0.1220],"The Goring":[51.4979,-0.1444],"Lobby Bar at One Aldwych":[51.5128,-0.1187],"The Standard, King's Cross":[51.5297,-0.1233],"Palm Court at Kimpton Fitzroy":[51.5223,-0.1257],"The Beaumont":[51.5133,-0.1502],
+"Gordon's Wine Bar":[51.5077,-0.1237],"Noble Rot Soho":[51.5139,-0.1303],"40 Maltby Street":[51.4995,-0.0755],"The 10 Cases":[51.5147,-0.1247],"Sager + Wilde":[51.5310,-0.0665],"Bar Crispin":[51.5124,-0.1387],"Planque":[51.5372,-0.0779],"Cadet":[51.5522,-0.0866],"Spiritland, King's Cross":[51.5352,-0.1258],"Brilliant Corners":[51.5438,-0.0757],"Jumbi":[51.4695,-0.0685]
 };
 
 // restore user-added drinks places from storage
@@ -1664,6 +1739,46 @@ function saveDrinksPlace(){
   document.getElementById('drinksAddPanel').classList.remove('open');
 }
 
+
+// ── NEAR ME ──
+const CAT_LABELS={views:'Views & Skyline',gardens:'Gardens & Nature',arch:'Architecture & History',quirky:'Quirky & Unusual',barsrest:'Restaurant / Bar',misc:'Misc',coffee:'Coffee & Breakfast',cocktails:'Cocktail Bar',lobbies:'Hotel Lobby & Tea',wine:'Wine & Listening Bar'};
+function haversineMiles(a,b){
+  const R=3958.8,toR=x=>x*Math.PI/180;
+  const dLat=toR(b[0]-a[0]),dLng=toR(b[1]-a[1]);
+  const h=Math.sin(dLat/2)**2+Math.cos(toR(a[0]))*Math.cos(toR(b[0]))*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+function findNearMe(){
+  const out=document.getElementById('nearMeContent');
+  if(!navigator.geolocation){ out.innerHTML='<div class="empty-state"><p>Location is not available on this device.</p></div>'; return; }
+  out.innerHTML='<div class="empty-state"><p>Finding you…</p></div>';
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const here=[pos.coords.latitude,pos.coords.longitude];
+    const places=[];
+    for(const [cat,items] of Object.entries(ESSENTIALS)) items.forEach(p=>{ if(GEO[p.name]) places.push({name:p.name,area:'',desc:p.note,tip:p.tip,url:p.url,cat,dist:haversineMiles(here,GEO[p.name])}); });
+    for(const [cat,items] of Object.entries(DRINKS)) items.forEach(p=>{ if(GEO[p.name]) places.push({name:p.name,area:p.area||'',desc:p.desc,tip:'',url:p.url,cat,dist:haversineMiles(here,GEO[p.name])}); });
+    places.sort((x,y)=>x.dist-y.dist);
+    const near=places.slice(0,30);
+    if(!near.length){ out.innerHTML='<div class="empty-state"><p>Nothing nearby found.</p></div>'; return; }
+    out.innerHTML='<div class="card-grid">'+near.map(p=>{
+      const walkMins=Math.round(p.dist*20);
+      const distLabel=p.dist<0.05?'right here':p.dist.toFixed(1)+' mi'+(p.dist<1.5?' · ~'+walkMins+' min walk':'');
+      const visited=visitedItems.includes('es_'+p.name.replace(/[^a-zA-Z0-9]/g,'').slice(0,24))||visitedItems.includes('dk_'+p.name.replace(/[^a-zA-Z0-9]/g,'').slice(0,24));
+      const mapUrl='https://maps.apple.com/?q='+encodeURIComponent(p.name+(p.area?', '+p.area:', London'));
+      return '<div class="essential-card'+(visited?'" style="opacity:0.55':'')+'">'
+        +'<div class="essential-card-header"><div><div class="drink-type">'+esc(CAT_LABELS[p.cat]||p.cat)+' · '+distLabel+'</div><div class="essential-name">'+esc(p.name)+'</div></div></div>'
+        +'<div class="essential-note">'+esc(p.desc||'')+'</div>'
+        +(p.tip?'<div class="essential-tip">→ '+esc(p.tip)+'</div>':'')
+        +'<div style="display:flex;gap:14px">'
+        +(p.url?'<a class="card-link" href="'+esc(p.url)+'" target="_blank" rel="noopener">Find out more →</a>':'')
+        +'<a class="card-link" href="'+esc(mapUrl)+'" target="_blank" rel="noopener">Directions →</a>'
+        +'</div></div>';
+    }).join('')+'</div>';
+    document.getElementById('nearMeNote').textContent='Showing the 30 closest places to you.';
+  },err=>{
+    out.innerHTML='<div class="empty-state"><p>Could not get your location.</p><small>'+(err.code===1?'Location permission was declined — allow it in Settings > Safari > Location.':esc(err.message))+'</small></div>';
+  },{enableHighAccuracy:true,timeout:12000,maximumAge:120000});
+}
 
 function init(){
   document.getElementById('weekRange').textContent=getWeekRange();
